@@ -2,7 +2,8 @@
 
 # Improving Text-to-Speech Synthesis with Diffusion Models: A D3PM Approach for Discrete Codecs
 
-![Thesis Banner](images/banner.png) <!-- Replace with your banner or remove this line -->
+<img width="784" alt="image" src="https://github.com/user-attachments/assets/64b9a727-50b9-4c5c-8dcb-11f79dd37bd7">
+
 
 ## Abstract
 This thesis explores advancements in Text-to-Speech (TTS) synthesis using diffusion models. By replacing traditional autoregressive models with a denoising diffusion probabilistic model (DDPM), we introduce a hybrid architecture that improves inference speed, scalability, and output quality. The proposed system leverages latent discrete representations through EnCodec and demonstrates robust zero-shot synthesis capabilities.
