@@ -32,5 +32,5 @@ Key contributions include:
 ## Getting Started
 1. Clone this repository:
    ```bash
-   git clone https://github.com/your-username/masters-thesis-diffusion-tts.git
+   git clone https://github.com/pratikjadhav2726/masters-thesis-diffusion-tts.git
 
