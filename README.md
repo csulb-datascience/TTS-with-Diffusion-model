@@ -29,6 +29,10 @@ Key contributions include:
 | Baseline     | 120.27                       | 3.7           | 500                    |
 | Proposed     | 211.90                       | 2.1           | 280                    |
 
+
+<img width="468" alt="image" src="https://github.com/user-attachments/assets/49a65bb1-d057-4f18-8548-ca40e93a7788">
+
+
 ## Getting Started
 1. Clone this repository:
    ```bash
