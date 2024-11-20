@@ -32,5 +32,5 @@ Key contributions include:
 ## Getting Started
 1. Clone this repository:
    ```bash
-   git clone https://github.com/csulb-datascience/masters-thesis-diffusion-tts.git
+   git clone https://github.com/csulb-datascience/TTS-with-Diffusion-model.git
 
