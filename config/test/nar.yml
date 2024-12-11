@@ -1,0 +1,9 @@
+data_dirs: [data/train]
+
+model: nar
+spkr_name_getter: "lambda p: p.parts[-1][:4]"
+batch_size: 6
+eval_batch_size: 6
+save_ckpt_every: 100
+eval_every: 50000
+max_iter: 555000

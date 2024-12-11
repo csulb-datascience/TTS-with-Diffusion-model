@@ -1,0 +1,138 @@
+from base import *
+class DiffusionTTS(Base):
+    def __init__(self, n_tokens, d_model=512, n_heads=8, n_layers=12, p_dropout=0.1, num_steps=1000):
+        super().__init__(n_tokens, d_model, n_heads, n_layers, p_dropout)
+        self.noise_schedule = NoiseSchedule(num_steps)
+        self.denoising_network = DenoisingNetwork(d_model, n_heads, n_layers)
+        self.num_steps = num_steps
+
+    def forward_diffusion(self, x0, t):
+        noise_level = self.noise_schedule.get_noise_level(t)
+        noise = torch.randn_like(x0)
+        return torch.sqrt(noise_level) * x0 + torch.sqrt(1 - noise_level) * noise
+
+    def reverse_diffusion(self, xt, t):
+        noise_pred = self.denoising_network(xt, t)
+        noise_level = self.noise_schedule.get_noise_level(t)
+        return (xt - torch.sqrt(1 - noise_level) * noise_pred) / torch.sqrt(noise_level)
+    
+    def forward(self, text_list, proms_list, resps_list, targ_list=None, quant_levels=None, shift_targ_list=False, return_all_resp=False, sampling_temperature=1.0):
+        x_list = self._samplewise_merge_tensors(
+            self.text_emb(text_list),
+            self.proms_emb(proms_list),
+            self.resps_emb(resps_list),
+            sep=self.sep,
+        )
+
+        x, m = list_to_tensor(x_list)
+        x = self.sin_emb.add_pe(x)
+
+        t = torch.randint(0, self.num_steps, (x.size(0),), device=x.device)
+        noise = torch.randn_like(x)
+        xt = self.forward_diffusion(x, t)
+
+        for step in range(self.num_steps - 1, -1, -1):
+            t = torch.full((x.size(0),), step, device=x.device, dtype=torch.long)
+            xt = self.reverse_diffusion(xt, t)
+
+        h = self.classifier(xt) * m
+
+        # Remove padding
+        h_list = [hi[:li] for hi, li in zip(h, map(len, x_list))]
+
+        if targ_list is not None:
+            # Noise prediction loss
+            predicted_noise = self.denoising_network(xt, t)
+            noise_loss = F.mse_loss(predicted_noise, noise)
+
+            # Cross-entropy loss for the final output
+            targ_list = torch.cat([*targ_list])
+            output = torch.cat([*h_list])
+            cross_entropy_loss = F.cross_entropy(output, targ_list, ignore_index=self.ignore_index)
+
+            # Combine the losses
+            self.loss = dict(
+                noise_loss=noise_loss,
+                cross_entropy_loss=cross_entropy_loss,
+                total_loss=noise_loss + cross_entropy_loss
+            )
+
+        if return_all_resp:
+            logits = [hi[-li:] for hi, li in zip(h_list, map(len, resps_list))]
+            ret = [Categorical(logits=hi / sampling_temperature).sample() for hi in logits]
+        else:
+            logits = torch.stack([hi[-1] for hi in h_list])
+            ret = Categorical(logits=logits / sampling_temperature).sample()
+
+        return ret
+def train(model, data_loader, optimizer, num_epochs):
+    model.train()
+    for epoch in range(num_epochs):
+        for batch in data_loader:
+            text_list, proms_list, resps_list, targ_list = batch
+            optimizer.zero_grad()
+            output = model(text_list, proms_list, resps_list, targ_list)
+            loss = model.loss['nll']
+            loss.backward()
+            optimizer.step()
+
+def inference(model, text_list, proms_list, max_steps=200, sampling_temperature=1.0):
+    model.eval()
+    with torch.no_grad():
+        return model(text_list, proms_list, max_steps=max_steps, sampling_temperature=sampling_temperature)
+
+
+def example_usage():
+    from functools import partial
+
+    import soundfile
+    from einops import repeat
+
+    device = "cuda"
+
+    qnt = torch.load("data/test/p225_002.qnt.pt")[0, 0].to(device)
+    num_qnts = 1024
+
+    model = DiffusionTTS(num_qnts).to(device)
+
+    text_list = [
+        torch.tensor([1, 2, 3], device=device),
+        torch.tensor([2, 3], device=device),
+    ]
+
+    x8 = partial(repeat, pattern="t -> t l", l=8)
+    proms_list = [
+        x8(torch.tensor([1, 2, 3], device=device)),
+        x8(torch.tensor([2, 3], device=device)),
+    ]
+
+    resp_list = [
+        torch.tensor([1, 2, 3], device=device),
+        qnt.to(device),
+    ]
+
+    out = inference(model, text_list, proms_list, max_steps=200)
+
+    print(out)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    for i in range(100):
+        train(model, [(text_list, proms_list, resp_list, None)], optimizer, num_epochs=1)
+
+        if i % 20 == 0:
+            print(f"iter={i}, loss={model.loss['nll']}.")
+
+    out = inference(model, text_list, proms_list, max_steps=200)
+
+    print(qnt)
+    print(out)
+
+    from ..emb.qnt import decode
+
+    codes = rearrange(out[1], "t -> 1 1 t")
+    wavs, sr = decode(codes)
+    soundfile.write("data/test/test.diffusion.recon.wav", wavs.cpu()[0, 0], sr)
+
+if __name__ == "__main__":
+    example_usage()
