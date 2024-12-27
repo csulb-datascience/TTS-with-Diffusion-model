@@ -38,9 +38,15 @@ Key contributions include:
    ```bash
    git clone https://github.com/csulb-datascience/TTS-with-Diffusion-model.git
 
-2. Train cloning and Voice Synthesis:
-   '''bash
+2. Training
+To start the training process, run the following command:
+Replace config/train/diffused.yml with the path to your YAML configuration file.
+   ```bash
    !python -m vall_e.train yaml=config/train/diffused.yml
-   '''
-   The diffused.yml file should include the congiguration of data directory and parameters like model, batch_size and checkpointing.
+3. Inference
+For Inference, run the following command:
+   ```bash
+   !python -m vall_e 'The Sentence to be cloned' data/test/speakersample.wav proposed/generated_sample_location.wav
+
+
 
