@@ -38,3 +38,9 @@ Key contributions include:
    ```bash
    git clone https://github.com/csulb-datascience/TTS-with-Diffusion-model.git
 
+2. Train cloning and Voice Synthesis:
+   '''bash
+   !python -m vall_e.train yaml=config/train/diffused.yml
+   '''
+   The diffused.yml file should include the congiguration of data directory and parameters like model, batch_size and checkpointing.
+
